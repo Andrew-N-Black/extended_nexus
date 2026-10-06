@@ -17,7 +17,7 @@
 # USAGE:
 #   sbatch bcftools_roh.sh
 # =============================================================================
-#SBATCH --job-name=old_new_bcftools_roh
+#SBATCH --job-name=nexus_bcftools_roh
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
 #SBATCH -A fnrdewoody
@@ -32,11 +32,12 @@
 
 set -euo pipefail
 
-PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/old_vs_new"
+PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/nexus"
 REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fna"
 FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist.txt"
 ROH_DIR="${PROJECT_DIR}/roh"
 THREADS=$SLURM_CPUS_PER_TASK
+REF_CACHE=hts-cache/%2s/%2s/%s
 
 mkdir -p logs "$ROH_DIR"
 
@@ -71,11 +72,10 @@ ml htslib
 # xalt is sticky and re-injects it):
 export SINGULARITYENV_LD_PRELOAD=""
 export APPTAINERENV_LD_PRELOAD=""
-CACHE=${CLUSTER_SCRATCH}/GROUSE/old_vs_new/ref/hts-cache
+CACHE=${CLUSTER_SCRATCH}/GROUSE/nexus/ref/hts-cache
 export REF_CACHE="$CACHE/%2s/%2s/%s" REF_PATH="$CACHE/%2s/%2s/%s"
 export SINGULARITYENV_REF_CACHE="$REF_CACHE" SINGULARITYENV_REF_PATH="$REF_PATH"
 export APPTAINERENV_REF_CACHE="$REF_CACHE" APPTAINERENV_REF_PATH="$REF_PATH"
-
 # =============================================================================
 # STEP 1: ANGSD genome-wide variant calling -> BCF (flags match ROH.sh
 # exactly, extracted directly from its source — no -doGeno needed)
