@@ -327,11 +327,11 @@ if [[ "$STAGE" == "fst" ]]; then
             > "${P}.2dsfs.ml.tmp"
         mv -f "${P}.2dsfs.ml.tmp" "${P}.2dsfs.ml"
     fi
-    # 2) per-site numerators/denominators, Hudson FST (Bhatia et al. 2013)
+    # 2) per-site numerators/denominators, reynolds Fst
     if [[ ! -s "${P}.fst.idx" ]]; then
         echo ">>> fst index $A x $B  $(date)"
         realSFS fst index "${OUT}/${A}.saf.idx" "${OUT}/${B}.saf.idx" \
-            -sfs "${P}.2dsfs.ml" -fold 1 -whichFst 1 -P "$THREADS" -fstout "${P}.tmp"
+            -sfs "${P}.2dsfs.ml" -fold 1 -whichFst 2 -P "$THREADS" -fstout "${P}.tmp"
         mv -f "${P}.tmp.fst.gz" "${P}.fst.gz"; mv -f "${P}.tmp.fst.idx" "${P}.fst.idx"
     fi
     # 3) genome-wide (ratio of averages = "weighted") and sliding windows
