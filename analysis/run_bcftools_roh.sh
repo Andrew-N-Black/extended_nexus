@@ -26,7 +26,7 @@ set -euo pipefail
 
 PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/nexus"
 REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fna"
-FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist.txt"
+FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist_4.66x.txt"
 ROH_DIR="${PROJECT_DIR}/roh"
 THREADS=$SLURM_CPUS_PER_TASK
 REF_CACHE=hts-cache/%2s/%2s/%s
