@@ -169,7 +169,8 @@ if [[ "$STAGE" == "summary" ]]; then
     while read -r cram; do
         ID=$(cram_id "$cram"); P="${QC}/per_sample/${ID}"
         if [[ ! -s "${P}.stats.tsv" || ! -s "${P}.flagstat.tsv" ]]; then missing+=("$ID"); continue; fi
-        SP=$(awk -F'\t' -v id="$ID" '{gsub(/\r/,""); sub(/^normal_/,"",$1)} $1==id {print $2; exit}' "$POPMAP")
+        SP=$(awk -F'\t' -v id="$ID" '{gsub(/\r/,""); k=$1; gsub(/[ \t]+/,"",k); sub(/^normal_/,"",k)}
+                 k==id {s=$0; sub(/^[^\t]*\t+/,"",s); gsub(/^[ \t]+|[ \t]+$/,"",s); print s; exit}' "$POPMAP")
         [[ -z "$SP" ]] && SP="unassigned"
         read -r _ D_IN FRAC SEEDFRAC STATUS D_OUT < "${P}.stats.tsv"
         DEPTH=$(awk -v z="$Z_SCAFFOLDS" 'BEGIN{n=split(z,a,","); for(i=1;i<=n;i++) Z[a[i]]=1}
