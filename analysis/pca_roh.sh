@@ -67,7 +67,7 @@ export APPTAINERENV_LD_PRELOAD=""
 # =============================================================================
 PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/nexus"
 REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fna"
-FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist.txt"
+FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist_4.66x.txt"
 HET_DIR="${PROJECT_DIR}/heterozygosity"
 
 BEAGLE_DIR="${PROJECT_DIR}/beagle"
