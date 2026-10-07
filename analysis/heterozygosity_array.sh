@@ -24,7 +24,7 @@
 #
 # USAGE:
 #    N=$(wc -l < final_cramlist_4.66x.txt)
-#   sbatch --array=0-$((N-1))%20 07_heterozygosity_array.sh
+#   sbatch --array=0-$((N-1))%20 heterozygosity_array.sh
 # =============================================================================
 #SBATCH --job-name=lepc_het
 #SBATCH --output=logs/%x_%A_%a.out
