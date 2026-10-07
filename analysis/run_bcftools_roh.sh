@@ -4,7 +4,15 @@
 #
 # Produces ROH_GROUSE_PL_regions.txt (the raw "RG" region lines, all
 # samples mixed together) -- pair this with roh_parse_autosomal.sh for the
-# actual per-sample F(ROH) summary (autosomal-only)
+# actual per-sample F(ROH) summary (autosomal-only, same length bins as
+# ROHan's parser, no rohparser.py dependency). Replicates ROH.sh from
+# https://github.com/Andrew-N-Black/LEPC-popgen.
+#
+# For the independent ROHan (Renaud et al. 2019) cross-check -- estimated
+# directly from CRAM via its own genotype-likelihood model rather than
+# from these called genotypes -- see ROHan/rohan_array.sh +
+# ROHan/rohan_parse_autosomal.sh instead; that pipeline no longer lives in
+# this script (previously Step 7 here, now standalone and array-parallel).
 #
 # USAGE:
 #   sbatch bcftools_roh.sh
