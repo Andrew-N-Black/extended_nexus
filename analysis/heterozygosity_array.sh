@@ -23,7 +23,7 @@
 # heterozygosity estimate.
 #
 # USAGE:
-#    N=$(wc -l < final_cramlist.txt)
+#    N=$(wc -l < final_cramlist_4.66x.txt)
 #   sbatch --array=0-$((N-1))%20 07_heterozygosity_array.sh
 # =============================================================================
 #SBATCH --job-name=lepc_het
@@ -53,7 +53,7 @@ unset LD_PRELOAD
 # =============================================================================
 PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/nexus"
 REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fna"
-FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist.txt"
+FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist_4.66x.txt"
 HET_DIR="${PROJECT_DIR}/heterozygosity"
 Z_SCAFFOLDS="NW_026294758.1,NW_026294813.1"
 AUTOSOME_RF="${HET_DIR}/autosomes.rf"
