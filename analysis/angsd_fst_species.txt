@@ -53,7 +53,7 @@ set -euo pipefail
 # averages FST is little affected; window Nsites then counts SNPs.
 PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/nexus"
 REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fna"
-CRAMLIST="${PROJECT_DIR}/final_cramlist.txt"       # <ID>.md.dedup_q20.cram
+CRAMLIST="${PROJECT_DIR}/final_cramlist_4.66x.txt"       # <ID>.md.dedup_q20.cram
 POPMAP="${PROJECT_DIR}/popmap_species.txt"         # ID<TAB>SPECIES (header line OK)
 RUN_NAME="species_LEPC_GRPC_STGR"
 JOB="fst_species"
