@@ -1,31 +1,38 @@
 #!/bin/bash
 # =============================================================================
-# angsd_fst_species.sh -- ANGSD pairwise FST, genome-wide and in autosomal sliding windows
-# Nexus panel: LEPC vs GRPC vs STGR (n=506)
+# angsd_fst_species.sh -- ANGSD pairwise FST (Hudson AND Reynolds), genome-wide
+# and in autosomal sliding windows. Nexus panel: LEPC vs GRPC vs STGR.
 #
 # Stages (chained with SLURM dependencies by "submit"):
-#   sites  [SITES_MODE=snps only] array over region chunks: SNP discovery on
-#          ALL samples together (-SNP_pval), so every group is scored at the
-#          same polymorphic sites
+#   sites  array over region chunks: SNP discovery on ALL samples together
+#          (-SNP_pval), so every group is scored at the same sites
 #   saf    array over (group x chunk): angsd -doSaf, autosomes only
 #   merge  array over groups: realSFS cat -> one autosomal SAF per group
-#   fst    array over group pairs: folded 2D-SFS prior -> realSFS fst index
-#          (-whichFst 1 = Hudson, Bhatia et al. 2013) -> genome-wide stats
-#          and sliding windows
+#   fst    array over group pairs:
+#            folded 2D-SFS prior (multi-line output collapsed to one line)
+#            -> realSFS fst index -whichFst 1  (Hudson; Bhatia et al. 2013)
+#            -> realSFS fst index -whichFst 0  (Reynolds et al. 1983)
+#            -> genome-wide stats + sliding windows for each estimator
 #
-# Each task skips work whose output already exists, and writes to a .tmp
-# name first, so rerunning "submit" after a failure only redoes what is
-# missing and a killed task never leaves a half-written file behind.
+# Every task skips work whose output already exists and writes to a .tmp
+# name first, so rerunning "submit" only redoes what is missing.
+#
+# The CRAM list used for a run is recorded in ${OUT}/lists/ALL.cramlist.md5.
+# If the list changes (e.g. after re-downsampling) while old sites/saf files
+# exist, the script stops instead of silently mixing old and new data.
 #
 # USAGE (login node, from the directory holding this script):
-#   bash angsd_fst_species.sh check          # build/verify group lists + chunks, no jobs
-#   bash angsd_fst_species.sh submit         # submit all stages with dependencies
-#   bash angsd_fst_species.sh submit fst     # resubmit from a later stage only
+#   bash angsd_fst_species.sh check        # verify lists + chunks, no jobs
+#   bash angsd_fst_species.sh submit       # all stages, with dependencies
+#   bash angsd_fst_species.sh submit fst   # only (re)run the FST stage
 #
-# OUTPUT (${OUT}):
-#   <A>_<B>.fst.global.txt                genome-wide FST (unweighted, weighted)
-#   <A>_<B>.fst.windows_<WIN>_<STEP>.txt  region chr midPos Nsites fst
-#   <A>_<B>.2dsfs.ml, <A>_<B>.fst.idx/.gz per-site files (for reruns/plots)
+# OUTPUT (${OUT}), for each pair <A>_<B>:
+#   <A>_<B>.2dsfs.ml                               2D-SFS prior (one line)
+#   <A>_<B>.hudson.fst.global.txt                  unweighted  weighted
+#   <A>_<B>.hudson.fst.windows_<WIN>_<STEP>.txt    region chr midPos Nsites fst
+#   <A>_<B>.reynolds.fst.global.txt
+#   <A>_<B>.reynolds.fst.windows_<WIN>_<STEP>.txt
+#   fst_global_summary.tsv                         all pairs x estimators
 # =============================================================================
 #SBATCH --job-name=angsd_fst_species
 #SBATCH --output=logs/%x_%A_%a.out
@@ -44,24 +51,25 @@ set -euo pipefail
 # =============================================================================
 # USER SETTINGS
 # =============================================================================
-# Species: LEPC (n=426) vs GRPC (n=49) vs STGR (n=29), nexus panel.
-# The two putative STGR x GRPC hybrids (F5434, F5622; popmap label
-# "STGR / GRPC") are left out, so 504 of the 506 birds are used.
-# With 426 birds, saf files over every site would be terabytes, so sites are
-# restricted to SNPs called on all 504 together (SITES_MODE=snps). Invariant
-# sites add ~0 to both the FST numerator and denominator, so ratio-of-
-# averages FST is little affected; window Nsites then counts SNPs.
+# LEPC (n=426) vs GRPC (n=49) vs STGR (n=29). The two putative STGR x GRPC
+# hybrids (F5434, F5622; popmap label "STGR / GRPC") are left out (504 birds).
+# Sites are restricted to SNPs called on all 504 together (SITES_MODE=snps):
+# saf files over every site for 426 birds would be terabytes, and invariant
+# sites add ~0 to both FST numerator and denominator. Window Nsites = SNPs.
 PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/nexus"
 REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fna"
-CRAMLIST="${PROJECT_DIR}/final_cramlist_4.66x.txt"       # <ID>.md.dedup_q20.cram
+CRAMLIST="${PROJECT_DIR}/crams_4.66x/final_cramlist_4.66x.txt"   # depth-matched CRAMs
 POPMAP="${PROJECT_DIR}/popmap_species.txt"         # ID<TAB>SPECIES (header line OK)
-RUN_NAME="species_LEPC_GRPC_STGR"
+RUN_NAME="species_LEPC_GRPC_STGR_4.66x"            # new folder: old runs untouched
 JOB="fst_species"
 GROUPS_ORDER=(LEPC GRPC STGR)                      # must match popmap labels
 declare -A EXPECTED_N=([LEPC]=426 [GRPC]=49 [STGR]=29)   # hybrids excluded
 SITES_MODE=snps
 N_CHUNKS=100
 SFS_EXTRA="-maxIter 200"
+# FST estimators: name -> realSFS -whichFst code
+declare -A FST_CODE=([hudson]=1 [reynolds]=0)
+FST_TYPES=(hudson reynolds)
 # per-stage resources: cpus mem time (sites/LEPC saf read 426+ CRAMs per chunk)
 SITES_RES=(16 64G 3-00:00:00)
 SAF_RES=(16 64G 2-00:00:00)
@@ -72,7 +80,7 @@ GL=1                     # samtools GL model
 MINMAPQ=30
 MINQ=30
 MIN_IND_FRAC=0.5         # keep a site if >= this fraction of the group has reads
-SNP_PVAL=1e-6            # SITES_MODE=snps: SNP discovery threshold
+SNP_PVAL=1e-6            # SNP discovery threshold
 WIN=50000                # sliding window (bp)
 STEP=10000               # window step (bp)
 Z_SCAFFOLDS="NW_026294758.1,NW_026294813.1"
@@ -86,8 +94,7 @@ mkdir -p "$OUT"/{lists,chunks,sites,saf} logs
 # =============================================================================
 # HELPERS
 # =============================================================================
-# Sample ID from a CRAM path: basename up to the first dot
-# (F17.md.dedup_q20.cram -> F17).
+# Sample ID from a CRAM path: basename up to the first dot (F17.cram -> F17).
 cram_id() { local b; b=$(basename "$1"); echo "${b%%.*}"; }
 # Sample ID from a popmap: drop a leading "normal_" (VCF-style names).
 pop_id()  { echo "${1#normal_}"; }
@@ -108,16 +115,16 @@ build_lists() {
     [[ -s "$CRAMLIST" ]] || { echo "ERROR: CRAMLIST not found: $CRAMLIST" >&2; exit 1; }
     [[ -s "$POPMAP"   ]] || { echo "ERROR: POPMAP not found: $POPMAP" >&2; exit 1; }
     declare -A GROUP_OF=()
-    local id grp rest cram
-    # Column 1 = sample ID, everything after the first tab (or first run of
-    # spaces) = group label. Labels can contain spaces, so a hybrid written
-    # "STGR / GRPC" stays one label, matches no group and is left out.
-    local line
+    local id grp cram line
+    # Column 1 = sample ID; everything after the first tab(s) = group label,
+    # trimmed. A hybrid written "STGR / GRPC" stays one label, matches no
+    # group and is left out; stray extra tabs/spaces are ignored.
     while IFS= read -r line; do
         line="${line%%$'\r'}"
         [[ -z "${line// }" || "${line:0:1}" == "#" ]] && continue
         if [[ "$line" == *$'\t'* ]]; then id="${line%%$'\t'*}"; grp="${line#*$'\t'}"
         else read -r id grp <<< "$line"; fi
+        id="${id//[[:space:]]/}"
         grp="$(sed -E 's/^[[:space:]]+|[[:space:]]+$//g' <<< "$grp")"
         GROUP_OF["$(pop_id "$id")"]="$grp"
     done < "$POPMAP"
@@ -153,6 +160,19 @@ build_lists() {
         [[ -s "$cram" ]] || { echo "ERROR: CRAM missing on disk: $cram" >&2; exit 1; }
         [[ -s "${cram}.crai" || -s "${cram%.cram}.crai" ]] || { echo "ERROR: no index for $cram" >&2; exit 1; }
     done < "${OUT}/lists/ALL.cramlist"
+
+    # Guard against reusing sites/saf files built from a different CRAM list
+    local new old
+    new=$(md5sum < "${OUT}/lists/ALL.cramlist" | cut -d' ' -f1)
+    if [[ -s "${OUT}/lists/ALL.cramlist.md5" ]]; then
+        old=$(cat "${OUT}/lists/ALL.cramlist.md5")
+        if [[ "$new" != "$old" ]] && { compgen -G "${OUT}/saf/*.saf.idx" >/dev/null || compgen -G "${OUT}/sites/*.sites.idx" >/dev/null; }; then
+            echo "ERROR: the CRAM list differs from the one used for the existing outputs in $OUT." >&2
+            echo "       Set a new RUN_NAME, or delete ${OUT}/{sites,saf}/ and ${OUT}/*.saf.* to start over." >&2
+            exit 1
+        fi
+    fi
+    echo "$new" > "${OUT}/lists/ALL.cramlist.md5"
 }
 
 # Autosomal contigs (every contig in the .fai except the Z scaffolds), split
@@ -181,15 +201,8 @@ load_angsd() {
     # xalt's LD_PRELOAD breaks the container (GLIBC_2.33/2.34 errors)
     unset LD_PRELOAD || true
     export SINGULARITYENV_LD_PRELOAD="" APPTAINERENV_LD_PRELOAD=""
-    # Read CRAM reference sequences from a local cache instead of the EBI
-    # server (the slow hts-ref fetches seen in the ROH job). Build it once:
-    #   seq_cache_populate.pl -root ${PROJECT_DIR}/ref/hts-cache ${REF_FASTA}
-    local cache="${PROJECT_DIR}/ref/hts-cache"
-    if [[ -d "$cache" ]]; then
-        export REF_CACHE="${cache}/%2s/%2s/%s" REF_PATH="${cache}/%2s/%2s/%s"
-        export SINGULARITYENV_REF_CACHE="$REF_CACHE" SINGULARITYENV_REF_PATH="$REF_PATH"
-        export APPTAINERENV_REF_CACHE="$REF_CACHE" APPTAINERENV_REF_PATH="$REF_PATH"
-    fi
+    # No REF_CACHE/REF_PATH: the FASTA is passed with -ref, which decodes
+    # these CRAMs correctly (a partial hts-cache caused decode failures).
 }
 
 min_ind() { awk -v n="$1" -v f="$MIN_IND_FRAC" 'BEGIN{m=int(n*f+0.5); print (m<1?1:m)}'; }
@@ -208,7 +221,8 @@ if [[ "$STAGE" == "check" || "$STAGE" == "submit" ]]; then
         n=$(wc -l < "${OUT}/lists/${g}.cramlist")
         echo "  $g: $n CRAMs (minInd $(min_ind "$n"))"
     done
-    echo "  sites: ${SITES_MODE}   pairs: $(pairs | paste -sd ';')"
+    echo "  sites: ${SITES_MODE}   pairs: $(pairs | paste -sd ';')   FST: ${FST_TYPES[*]}"
+    echo "  CRAM list: $CRAMLIST"
     echo "  output: $OUT"
     [[ "$STAGE" == "check" ]] && exit 0
 
@@ -282,8 +296,8 @@ if [[ "$STAGE" == "saf" ]]; then
         -doSaf 1 -GL "$GL" \
         -minMapQ "$MINMAPQ" -minQ "$MINQ" -remove_bads 1 -uniqueOnly 1 -only_proper_pairs 1 \
         -minInd "$(min_ind "$N")" -P "$THREADS" -out "${PFX}.tmp"
-    # realSFS locates .saf.gz/.saf.pos.gz from the .saf.idx prefix, so the
-    # three files can be renamed together; idx last marks the chunk complete.
+    # realSFS finds .saf.gz/.saf.pos.gz from the .saf.idx prefix; idx last
+    # marks the chunk complete.
     mv -f "${PFX}.tmp.saf.gz" "${PFX}.saf.gz"
     mv -f "${PFX}.tmp.saf.pos.gz" "${PFX}.saf.pos.gz"
     mv -f "${PFX}.tmp.arg" "${PFX}.arg"
@@ -310,7 +324,7 @@ if [[ "$STAGE" == "merge" ]]; then
 fi
 
 # =============================================================================
-# fst (task = pair)
+# fst (task = pair): 2D-SFS, then Hudson and Reynolds FST
 # =============================================================================
 if [[ "$STAGE" == "fst" ]]; then
     read -r A B < <(pairs | sed -n "$((TASK+1))p")
@@ -319,28 +333,57 @@ if [[ "$STAGE" == "fst" ]]; then
         [[ -s "${OUT}/${g}.saf.idx" ]] || { echo "ERROR: ${OUT}/${g}.saf.idx missing" >&2; exit 1; }
     done
     load_angsd
-    # 1) folded 2D-SFS: the prior for the per-site FST estimates.
-    #    (The reference is used as "ancestral", so the SFS is folded.)
+
+    # 1) folded 2D-SFS: the prior for the per-site FST estimates (reference
+    #    used as "ancestral", so folded). realSFS can print one line per
+    #    block of sites; fst index needs ONE line, so multiple lines are
+    #    averaged column-wise (each line is already a normalized SFS).
     if [[ ! -s "${P}.2dsfs.ml" ]]; then
         echo ">>> 2D-SFS $A x $B  $(date)"
         realSFS "${OUT}/${A}.saf.idx" "${OUT}/${B}.saf.idx" -fold 1 -P "$THREADS" ${SFS_EXTRA} \
-            > "${P}.2dsfs.ml.tmp"
+            > "${P}.2dsfs.raw.tmp"
+        NL=$(grep -c . "${P}.2dsfs.raw.tmp")
+        if (( NL > 1 )); then
+            echo "    2D-SFS has $NL lines; averaging them into one"
+            awk '{for(i=1;i<=NF;i++) s[i]+=$i; n++; nf=NF}
+                 END {for(i=1;i<=nf;i++) printf "%s%.10g", (i>1?" ":""), s[i]/n; print ""}' \
+                "${P}.2dsfs.raw.tmp" > "${P}.2dsfs.ml.tmp"
+            mv -f "${P}.2dsfs.raw.tmp" "${P}.2dsfs.raw_lines.ml"
+        else
+            mv -f "${P}.2dsfs.raw.tmp" "${P}.2dsfs.ml.tmp"
+        fi
         mv -f "${P}.2dsfs.ml.tmp" "${P}.2dsfs.ml"
     fi
-    # 2) per-site numerators/denominators, reynolds Fst
-    if [[ ! -s "${P}.fst.idx" ]]; then
-        echo ">>> fst index $A x $B  $(date)"
-        realSFS fst index "${OUT}/${A}.saf.idx" "${OUT}/${B}.saf.idx" \
-            -sfs "${P}.2dsfs.ml" -fold 1 -whichFst 2 -P "$THREADS" -fstout "${P}.tmp"
-        mv -f "${P}.tmp.fst.gz" "${P}.fst.gz"; mv -f "${P}.tmp.fst.idx" "${P}.fst.idx"
-    fi
-    # 3) genome-wide (ratio of averages = "weighted") and sliding windows
-    realSFS fst stats "${P}.fst.idx" > "${P}.fst.global.txt" 2> "${P}.fst.global.log"
-    W="${P}.fst.windows_${WIN}_${STEP}.txt"
-    realSFS fst stats2 "${P}.fst.idx" -win "$WIN" -step "$STEP" -type 2 > "${W}.tmp"
-    mv -f "${W}.tmp" "$W"
-    echo ">>> $A x $B  FST unweighted / weighted: $(tail -n1 "${P}.fst.global.txt")"
-    echo ">>> $(($(wc -l < "$W") - 1)) windows -> $W"
+    [[ $(grep -c . "${P}.2dsfs.ml") -eq 1 ]] || { echo "ERROR: ${P}.2dsfs.ml must be one line" >&2; exit 1; }
+
+    # 2) per estimator: fst index -> genome-wide stats -> sliding windows
+    for T in "${FST_TYPES[@]}"; do
+        Q="${P}.${T}"
+        if [[ ! -s "${Q}.fst.idx" ]]; then
+            echo ">>> fst index ($T, -whichFst ${FST_CODE[$T]}) $A x $B  $(date)"
+            realSFS fst index "${OUT}/${A}.saf.idx" "${OUT}/${B}.saf.idx" \
+                -sfs "${P}.2dsfs.ml" -fold 1 -whichFst "${FST_CODE[$T]}" -P "$THREADS" \
+                -fstout "${Q}.tmp"
+            mv -f "${Q}.tmp.fst.gz" "${Q}.fst.gz"; mv -f "${Q}.tmp.fst.idx" "${Q}.fst.idx"
+        fi
+        realSFS fst stats "${Q}.fst.idx" > "${Q}.fst.global.txt" 2> "${Q}.fst.global.log"
+        W="${Q}.fst.windows_${WIN}_${STEP}.txt"
+        realSFS fst stats2 "${Q}.fst.idx" -win "$WIN" -step "$STEP" -type 2 > "${W}.tmp"
+        mv -f "${W}.tmp" "$W"
+        echo ">>> $A x $B  $T FST unweighted / weighted: $(tail -n1 "${Q}.fst.global.txt")"
+        echo ">>> $(($(wc -l < "$W") - 1)) windows -> $W"
+    done
+
+    # 3) one summary table across pairs (rewritten by every fst task)
+    {
+        printf "pair\testimator\tfst_unweighted\tfst_weighted\n"
+        for f in "${OUT}"/*_*.*.fst.global.txt; do
+            [[ -s "$f" ]] || continue
+            b=$(basename "$f" .fst.global.txt)
+            printf "%s\t%s\t%s\n" "${b%.*}" "${b##*.}" "$(tail -n1 "$f" | awk '{print $1"\t"$2}')"
+        done
+    } > "${OUT}/fst_global_summary.tsv.tmp.${TASK}"
+    mv -f "${OUT}/fst_global_summary.tsv.tmp.${TASK}" "${OUT}/fst_global_summary.tsv"
     exit 0
 fi
 
