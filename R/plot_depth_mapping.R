@@ -61,31 +61,27 @@ panel <- function(y, ylab, hline = NULL) {
 }
 
 target <- 4.66
-if ("mean_depth_genome" %in% names(d) && "depth_before" %in% names(d)) {
-  p1 <- panel("mean_depth_genome", "Mean depth after\nsubsampling (X)", hline = target)
-} else {
-  p1 <- panel("mean_depth_autosomal", "Mean autosomal depth (X)")
-}
-p0 <- if ("depth_before" %in% names(d)) panel("depth_before", "Mean depth before\nsubsampling (X)", hline = target) else NULL
-p2 <- panel("pct_both_mates_mapped", "Paired mapping rate (%)\n(both mates mapped)")
-p3 <- panel("pct_properly_paired", "Properly paired (%)")
+DPI    <- 800
+# Final (post-subsampling) data only: mean depth and properly paired reads
+depth_col <- if ("mean_depth_genome" %in% names(d)) "mean_depth_genome" else "mean_depth_autosomal"
+pA <- panel(depth_col, "Mean depth (X)", hline = target)
+pB <- panel("pct_properly_paired", "Properly paired reads (%)")
+pl <- Filter(Negate(is.null), list(pA, pB))
 
 if (requireNamespace("patchwork", quietly = TRUE)) {
   library(patchwork)
-  pl <- Filter(Negate(is.null), list(p0, p1, p2, p3))
   fig <- wrap_plots(pl, ncol = 2) + plot_annotation(tag_levels = "A")
-  w <- 9; h <- 3.5 * ceiling(length(pl) / 2)
-  ggsave(paste0(prefix, ".pdf"), fig, width = w, height = h)
-  ggsave(paste0(prefix, ".png"), fig, width = w, height = h, dpi = 300)
+  ggsave(paste0(prefix, ".pdf"), fig, width = 9, height = 3.8)
+  ggsave(paste0(prefix, ".png"), fig, width = 9, height = 3.8, dpi = DPI)
 } else {
-  pdf(paste0(prefix, ".pdf"), width = 4.2, height = 3.8)
-  for (pp in Filter(Negate(is.null), list(p0, p1, p2, p3))) print(pp); invisible(dev.off())
-  for (k in Filter(function(z) !is.null(z[[1]]), list(list(p1, "depth"), list(p2, "paired_mapping"), list(p3, "properly_paired"))))
-    ggsave(paste0(prefix, "_", k[[2]], ".png"), k[[1]], width = 4.2, height = 3.8, dpi = 300)
+  pdf(paste0(prefix, ".pdf"), width = 4.5, height = 3.8)
+  for (pp in pl) print(pp); invisible(dev.off())
+  ggsave(paste0(prefix, "_depth.png"), pA, width = 4.5, height = 3.8, dpi = DPI)
+  ggsave(paste0(prefix, "_properly_paired.png"), pB, width = 4.5, height = 3.8, dpi = DPI)
 }
 
 # per-species summary table
-vars <- c(intersect(c("depth_before", "mean_depth_genome"), names(d)), "mean_depth_autosomal", "pct_both_mates_mapped", "pct_properly_paired", "pct_mapped")
+vars <- c("mean_depth_genome", "mean_depth_autosomal", "pct_both_mates_mapped", "pct_properly_paired", "pct_mapped")
 vars <- intersect(vars, names(d))
 s <- do.call(rbind, lapply(split(d, d$species, drop = TRUE), function(g) {
   data.frame(species = as.character(g$species[1]), n = nrow(g),
