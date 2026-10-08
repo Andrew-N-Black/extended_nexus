@@ -43,8 +43,8 @@ d$species[grepl("/", d$species)] <- "STGR x GRPC"   # putative hybrids
 lev <- c("LEPC", "GRPC", "STGR", "STGR x GRPC", "unassigned")
 d$species <- factor(d$species, levels = c(intersect(lev, unique(d$species)),
                                           setdiff(unique(d$species), lev)))
-cols <- c(LEPC = "#2a78b5", GRPC = "#c4762b", STGR = "#3a9a5b",
-          "STGR x GRPC" = "#8a6bbe", unassigned = "#888888")
+cols <- c(LEPC = "#A52A2A", GRPC = "#DAA520", STGR = "#000000",
+          "STGR x GRPC" = "#BEBEBE", unassigned = "#888888")
 n_lab <- function(x) paste0(levels(x), "\n(n=", table(x), ")")
 
 panel <- function(y, ylab, hline = NULL) {
