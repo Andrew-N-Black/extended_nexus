@@ -12,7 +12,32 @@ args   <- commandArgs(trailingOnly = TRUE)
 infile <- if (length(args) >= 1) args[1] else "depth_mapping_summary.tsv"
 prefix <- if (length(args) >= 2) args[2] else "depth_mapping_by_species"
 
-d <- read.delim(infile, check.names = FALSE, stringsAsFactors = FALSE)
+# Read robustly: a stray extra tab in a row (e.g., an empty species field
+# from a double tab in the popmap) would otherwise shift that row's columns
+# or wrap it onto a new row. Empty fields after the sample ID are dropped
+# when a row has more fields than the header.
+lines <- readLines(infile, warn = FALSE)
+lines <- sub("\r$", "", lines[nzchar(lines)])
+hdr   <- strsplit(lines[1], "\t", fixed = FALSE)[[1]]
+hdr   <- trimws(hdr[nzchar(trimws(hdr))])     # a header name is never empty: drop stray tabs
+rows  <- lapply(strsplit(lines[-1], "\t"), function(f) {
+  if (length(f) > length(hdr)) f <- c(f[1], f[-1][nzchar(f[-1])])
+  length(f) <- length(hdr); f
+})
+d <- as.data.frame(do.call(rbind, rows), stringsAsFactors = FALSE)
+# empty header names (a double tab in the header line): drop the column if it
+# holds no data, otherwise give it a placeholder name
+empty <- which(!nzchar(trimws(hdr)))
+for (i in empty) hdr[i] <- paste0("unnamed_", i)
+names(d) <- hdr
+drop <- names(d)[startsWith(names(d), "unnamed_") &
+                 vapply(d, function(z) all(is.na(z) | !nzchar(trimws(z))), logical(1))]
+if (length(drop)) d <- d[, setdiff(names(d), drop), drop = FALSE]
+hdr <- names(d)
+for (v in setdiff(names(d), c("sample", "sample_id", "species", "status", "depth_flag", "seed_fraction")))
+  suppressWarnings(d[[v]] <- as.numeric(d[[v]]))
+cat("Columns:", paste(hdr, collapse = ", "), "\n")
+cat("Rows:", nrow(d), "\n")
 d$species <- trimws(d$species)
 d$species[grepl("/", d$species)] <- "STGR x GRPC"   # putative hybrids
 lev <- c("LEPC", "GRPC", "STGR", "STGR x GRPC", "unassigned")
@@ -23,6 +48,7 @@ cols <- c(LEPC = "#2a78b5", GRPC = "#c4762b", STGR = "#3a9a5b",
 n_lab <- function(x) paste0(levels(x), "\n(n=", table(x), ")")
 
 panel <- function(y, ylab, hline = NULL) {
+  if (!y %in% names(d)) { message("Column ", y, " not in table -- panel skipped"); return(NULL) }
   p <- ggplot(d, aes(species, .data[[y]], colour = species)) +
     geom_boxplot(outlier.shape = NA, width = 0.55, colour = "grey30", fill = NA) +
     geom_jitter(width = 0.18, height = 0, size = 1.3, alpha = 0.65) +
@@ -46,20 +72,21 @@ p3 <- panel("pct_properly_paired", "Properly paired (%)")
 
 if (requireNamespace("patchwork", quietly = TRUE)) {
   library(patchwork)
-  fig <- if (is.null(p0)) p1 + p2 + p3 else (p0 | p1) / (p2 | p3)
-  fig <- fig + plot_annotation(tag_levels = "A")
-  w <- if (is.null(p0)) 11 else 9; h <- if (is.null(p0)) 3.8 else 7
+  pl <- Filter(Negate(is.null), list(p0, p1, p2, p3))
+  fig <- wrap_plots(pl, ncol = 2) + plot_annotation(tag_levels = "A")
+  w <- 9; h <- 3.5 * ceiling(length(pl) / 2)
   ggsave(paste0(prefix, ".pdf"), fig, width = w, height = h)
   ggsave(paste0(prefix, ".png"), fig, width = w, height = h, dpi = 300)
 } else {
   pdf(paste0(prefix, ".pdf"), width = 4.2, height = 3.8)
-  if (!is.null(p0)) print(p0); print(p1); print(p2); print(p3); invisible(dev.off())
-  for (k in list(list(p1, "depth"), list(p2, "paired_mapping"), list(p3, "properly_paired")))
+  for (pp in Filter(Negate(is.null), list(p0, p1, p2, p3))) print(pp); invisible(dev.off())
+  for (k in Filter(function(z) !is.null(z[[1]]), list(list(p1, "depth"), list(p2, "paired_mapping"), list(p3, "properly_paired"))))
     ggsave(paste0(prefix, "_", k[[2]], ".png"), k[[1]], width = 4.2, height = 3.8, dpi = 300)
 }
 
 # per-species summary table
 vars <- c(intersect(c("depth_before", "mean_depth_genome"), names(d)), "mean_depth_autosomal", "pct_both_mates_mapped", "pct_properly_paired", "pct_mapped")
+vars <- intersect(vars, names(d))
 s <- do.call(rbind, lapply(split(d, d$species, drop = TRUE), function(g) {
   data.frame(species = as.character(g$species[1]), n = nrow(g),
              do.call(cbind, lapply(vars, function(v) {
