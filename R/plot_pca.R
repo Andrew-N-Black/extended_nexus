@@ -3,9 +3,9 @@ library(readxl)
 library(ggplot2)
 
 #Read in metadata
-metadata <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/sarek_nexus_new_plus_shotguns/heterozygosity_extended_nexus.xlsx")
+metadata <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/USFWS_REPORTS/files/temporal_metadata_unrelated.xlsx")
 #Read in covariation matrix
-cov<-as.matrix(read.table("~/final.cov"))
+cov<-as.matrix(read.table("/Users/andrewblack/Documents/Research/GROUSE/USFWS_REPORTS/files/final.cov"))
 
 #Extract and calculate eplained variation
 axes<-eigen(cov)
