@@ -12,7 +12,7 @@ library(dplyr)
 
 #By DPS and Species
 #load metadata
-HET_FILT <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/sarek_nexus_new_plus_shotguns/grouse_extended_nexus_samples_v2.xlsx")
+HET_FILT <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/USFWS_REPORTS/files/nexus_metadata.xlsx")
 #Plot
 ggplot(HET_FILT, aes(x=SPECIES, y=Heterozygosity, fill=SPECIES)) +geom_boxplot() +scale_fill_manual("", values=c("Tympanuchus cupido" = "goldenrod","Tympanuchus pallidicinctus"="brown","Tympanuchus phasianellus" = "black","Tympanuchus phasianellus/Tympanuchus cupido" = "grey")) + xlab("") + ylab("H") +theme_classic() +theme(axis.text.y = element_text(size=12)) +theme(legend.position="bottom") +theme(axis.text=element_text(size=14), axis.title=element_text(size=22, face="italic")) +theme(strip.text = element_text(size=18))+facet_wrap(~GROUP)+theme(axis.text.x = element_blank(), axis.title.x = element_blank())
 
