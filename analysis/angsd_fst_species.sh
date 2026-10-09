@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # angsd_fst_species.sh -- ANGSD pairwise FST (Hudson AND Reynolds), genome-wide
-# and in autosomal sliding windows. Nexus panel: LEPC vs GRPC vs STGR.
+# and in autosomal sliding windows. LEPC vs GRPC vs STGR.
 #
 # Stages (chained with SLURM dependencies by "submit"):
 #   sites  array over region chunks: SNP discovery on ALL samples together
