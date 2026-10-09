@@ -1,6 +1,6 @@
 # =============================================================================
 # Sliding-window FST (ANGSD realSFS fst stats2) for the three species pairs,
-# nexus panel. One panel per pair, stacked in one column. Scaffolds are laid
+# nexus panel.  Scaffolds are laid
 # end to end (longest first) and unlabeled; point colors alternate between
 # scaffolds using the two species' colors of each pair.
 # Dashed line = genome-wide weighted FST for that pair.
