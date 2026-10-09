@@ -7,7 +7,7 @@
 # =============================================================================
 library(ggplot2)
 
-FST_DIR <- "~/"   # <- edit (copy of the cluster OUT dir)
+FST_DIR <- "/Users/andrewblack/Documents/Research/GROUSE/USFWS_REPORTS/files/"   
 WIN  <- 100000           # window size used in realSFS fst stats2 (50000 or 100000)
 STEP <- 20000            # step used (10000 for the 50 kb run)
 EST  <- ""               # "" = Hudson files; ".reynolds" = Reynolds files
