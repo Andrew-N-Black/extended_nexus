@@ -5,9 +5,10 @@
 #   Rscript plot_depth_mapping.R depth_mapping_summary.tsv depth_mapping_by_species
 #
 # Writes <prefix>.pdf, <prefix>.png and <prefix>_by_species.tsv (n, mean, SD,
-# median, range per species). Needs ggplot2; patchwork is used if installed.
+# median, range per species). Needs ggplot2; patchwork
 
-suppressPackageStartupMessages(library(ggplot2))
+library(ggplot2)
+library(patchwork)
 args   <- commandArgs(trailingOnly = TRUE)
 infile <- if (length(args) >= 1) args[1] else "depth_mapping_summary.tsv"
 prefix <- if (length(args) >= 2) args[2] else "depth_mapping_by_species"
