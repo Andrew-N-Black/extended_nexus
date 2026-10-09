@@ -4,12 +4,6 @@ library(readxl)
 library(ggpubr)
 library(dplyr)
 
-#Load libraries
-library(ggplot2)
-library(readxl)
-library(ggpubr)
-library(dplyr)
-
 #By DPS and Species
 #load metadata
 HET_FILT <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/USFWS_REPORTS/files/nexus_metadata.xlsx")
