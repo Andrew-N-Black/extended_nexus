@@ -3,7 +3,7 @@ library(reshape2)
 library(ggplot2)
 
 #read in metadata
-metadata <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/sarek_nexus_new_plus_shotguns/heterozygosity_extended_nexus.xlsx")
+metadata <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/USFWS_REPORTS/files/temporal_metadata.xlsx")
 
 #Extract relevant information
 sub<-metadata[,c("ID","GROUP","SPECIES","fROH_100kb-1Mb","fROH_1Mb","fROH_total")]
