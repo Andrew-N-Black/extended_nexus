@@ -48,13 +48,19 @@ MINMAF=0.05
 MAXITER=50000
 TOL=1e-9
 TOLLIKE50=1e-9
-THIN_BP=0            # 0 = use every SNP; e.g. 10000 keeps >= 10 kb between SNPs
+THIN_BP=10000        # 0 = use every SNP; e.g. 10000 keeps >= 10 kb between SNPs
                      #     (less LD among loci, much less memory)
 CPUS=20
 MAX_PARALLEL=10      # simultaneous NGSadmix runs
-# NGSadmix binary: from the ANGSD biocontainer if it provides it, otherwise
-# set NGSADMIX to a full path (e.g. .../angsd/misc/NGSadmix)
-NGSADMIX="${NGSADMIX:-NGSadmix}"
+# NGSadmix is NOT in the RCAC biocontainers or the angsd module. Build it once
+# (commands below) into TOOLS_DIR, or point NGSADMIX at an existing binary.
+TOOLS_DIR="${PROJECT_DIR}/tools/NGSadmix"
+NGSADMIX="${NGSADMIX:-${TOOLS_DIR}/NGSadmix}"
+#   one-time build (login node):
+#     mkdir -p ${TOOLS_DIR} && cd ${TOOLS_DIR}
+#     wget http://popgen.dk/software/download/NGSadmix/ngsadmix32.cpp
+#     ml gcc; g++ ngsadmix32.cpp -O3 -lpthread -lz -o NGSadmix
+#     ./NGSadmix            # prints usage if the build worked
 # =============================================================================
 
 mkdir -p "$OUT"/best logs
@@ -63,7 +69,7 @@ BEAGLE="$BEAGLE_IN"; [[ "$THIN_BP" -gt 0 ]] && BEAGLE="${OUT}/autosomes.thin${TH
 
 load_tools() {
     module --force purge 2>/dev/null || true
-    ml biocontainers angsd/0.940 2>/dev/null || true
+    ml gcc 2>/dev/null || true     # runtime libstdc++ for the self-built binary
     unset LD_PRELOAD || true
     export SINGULARITYENV_LD_PRELOAD="" APPTAINERENV_LD_PRELOAD=""
 }
@@ -75,6 +81,9 @@ STAGE="${1:-}"
 # -----------------------------------------------------------------------------
 if [[ "$STAGE" == "submit" ]]; then
     [[ -s "$BEAGLE_IN" ]] || { echo "ERROR: $BEAGLE_IN not found (run nexus_pca_admix.sh first)" >&2; exit 1; }
+    # fail now, not in 100 array tasks, if the binary is missing
+    [[ -x "$NGSADMIX" ]] || command -v "$NGSADMIX" >/dev/null 2>&1 \
+        || { echo "ERROR: NGSadmix not found at $NGSADMIX -- build it first (see USER SETTINGS)" >&2; exit 1; }
     cp -f "$SAMPLES_IN" "${OUT}/samples.txt"
     N=$(wc -l < "${OUT}/samples.txt")
 
@@ -113,7 +122,7 @@ if [[ "$STAGE" == "run" ]]; then
     D="${OUT}/r${R}"; P="${D}/nexus_k${K}"; mkdir -p "$D"
     if [[ -s "${P}.qopt" && -s "${P}.log" ]]; then echo "K=$K rep=$R done -- skipping"; exit 0; fi
     load_tools
-    command -v "$NGSADMIX" >/dev/null 2>&1 || type "$NGSADMIX" >/dev/null 2>&1 \
+    [[ -x "$NGSADMIX" ]] || command -v "$NGSADMIX" >/dev/null 2>&1 \
         || { echo "ERROR: NGSadmix not found; set NGSADMIX to its full path" >&2; exit 1; }
     SEED=$(( 1000 * K + R ))       # distinct, reproducible seed per run
     echo ">>> K=$K rep=$R seed=$SEED  $(date)"
