@@ -237,13 +237,18 @@ if [[ "$STAGE" == "pcangsd" ]]; then
     BEAGLE="${OUT}/autosomes.beagle.gz"
     if [[ ! -s "$BEAGLE" ]]; then
         echo ">>> concatenating $NC chunk beagles  $(date)"
-        { zcat "${PARTS[0]}" | head -n 1
-          for f in "${PARTS[@]}"; do zcat "$f" | tail -n +2; done; } | gzip > "${BEAGLE}.tmp"
+        # header from the first chunk, then every chunk without its header.
+        # (header read with awk 'NR==1{print;exit}' || true: "zcat | head" ends
+        #  with SIGPIPE, which set -o pipefail would treat as a fatal error)
+        GZ="gzip"; command -v pigz >/dev/null && GZ="pigz -p ${THREADS}"
+        { zcat "${PARTS[0]}" 2>/dev/null | awk 'NR==1{print; exit}' || true
+          for f in "${PARTS[@]}"; do zcat "$f" | tail -n +2; done; } | $GZ > "${BEAGLE}.tmp"
         mv -f "${BEAGLE}.tmp" "$BEAGLE"
+        echo ">>> concatenated  $(date)"
     fi
     NSNP=$(( $(zcat "$BEAGLE" | wc -l) - 1 )); echo ">>> $NSNP autosomal SNPs"
     # beagle columns must match samples.txt (3 GL columns per sample)
-    NCOL=$(zcat "$BEAGLE" | head -n 1 | awk '{print (NF-3)/3}')
+    NCOL=$( (zcat "$BEAGLE" 2>/dev/null | awk 'NR==1{print (NF-3)/3; exit}') || true )
     [[ "$NCOL" == "$(wc -l < "${OUT}/samples.txt")" ]] \
         || { echo "ERROR: beagle has $NCOL samples, samples.txt has $(wc -l < "${OUT}/samples.txt")" >&2; exit 1; }
 
