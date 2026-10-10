@@ -37,7 +37,7 @@
 #SBATCH --job-name=angsd_fst_species
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH -A dewoody
+#SBATCH -A fnrdewoody
 #SBATCH -p cpu
 #SBATCH -t 2-00:00:00
 #SBATCH --nodes=1
@@ -81,8 +81,8 @@ MINMAPQ=30
 MINQ=30
 MIN_IND_FRAC=0.5         # keep a site if >= this fraction of the group has reads
 SNP_PVAL=1e-6            # SNP discovery threshold
-WIN=50000                # sliding window (bp)
-STEP=10000               # window step (bp)
+WIN=100000               # sliding window (bp); report Fig 11 uses 100 kb (a 50 kb / 10 kb run was also made)
+STEP=20000               # window step (bp)
 Z_SCAFFOLDS="NW_026294758.1,NW_026294813.1"
 MAX_PARALLEL=50          # max simultaneous array tasks per stage
 

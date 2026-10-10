@@ -2,29 +2,28 @@
 # fROH summaries and tests for the nexus panel, by species ("common") and
 # sampling context ("GROUP").  Input: `sub` with columns ID, GROUP, common and
 # the three fROH columns (100 kb-1 Mb, >1 Mb, total), as used for the plot.
+# USFWS report, Objective 2: f_ROH Results, Figure 9; depth check (section 5).
 # Needs: dplyr, tidyr, rstatix   install.packages(c("dplyr","tidyr","rstatix"))
 # =============================================================================
 library(dplyr)
 library(tidyr)
 library(rstatix)
 
-## ---- test data (ignored when your own `sub` data frame exists) -------------
-if (!is.data.frame(get0("sub"))) {
-    set.seed(1)
-    n <- c(LEPC = 426, GRPC = 49, STGR = 29, "STGR / GRPC" = 2)
-    sub <- data.frame(ID = paste0("F", 1:506), common = rep(names(n), n))
-    sub$GROUP <- ifelse(runif(506) < 0.32, "Sympatric", "Allopatric")
-    sub$GROUP[sub$common == "STGR / GRPC"] <- "Sympatric"
-    sub$fROH_100kb <- rbeta(506, 2, 40); sub$fROH_1Mb <- rbeta(506, 0.3, 60)
-    sub$fROH_total <- sub$fROH_100kb + sub$fROH_1Mb
-}
+## ---- input ------------------------------------------------------------------
+## `sub`: one row per bird with columns ID, GROUP (Allopatric/Sympatric),
+## common (LEPC, GRPC, STGR, "STGR / GRPC") and the three fROH columns
+## (100 kb-1 Mb, >1 Mb, total) from roh_parse_autosomal.sh, merged with the
+## sample metadata (nexus_metadata.xlsx).
+if (!is.data.frame(get0("sub")))
+    stop("Create `sub` first (ID, GROUP, common, three fROH columns); see header.")
 ## ---------------------------------------------------------------------------
 
+DEPTH_COL <- "depth"   # optional mean-depth column in `sub` (section 5); change to your name
 HYB <- "STGR / GRPC"                     # exact label in your data (with spaces)
 
 # long format with readable class names (matched on column name)
 roh <- sub %>%
-    pivot_longer(-c(ID, GROUP, common), names_to = "variable", values_to = "fROH") %>%
+    pivot_longer(-any_of(c("ID", "GROUP", "common", DEPTH_COL)), names_to = "variable", values_to = "fROH") %>%
     mutate(class  = case_when(grepl("tot", variable, ignore.case = TRUE) ~ "Total",
                               grepl("100", variable)                     ~ "100 kb-1 Mb",
                               TRUE                                       ~ ">1 Mb"),
@@ -76,3 +75,24 @@ write.csv(by_species_group, "fROH_summary_species_by_group.csv", row.names = FAL
 write.csv(by_species,       "fROH_summary_species.csv",          row.names = FALSE)
 write.csv(as.data.frame(pw_species), "fROH_pairwise_species.csv", row.names = FALSE)
 write.csv(as.data.frame(wx_context), "fROH_allo_vs_sym.csv",      row.names = FALSE)
+
+# ---- 5. Does f_ROH track sequencing depth? -----------------------------------
+# Needs a numeric mean-depth column in `sub` (post-harmonization depth from
+# nexus_downsample_depth_mapping.sh). Two hybrid rows in nexus_metadata.xlsx
+# are column-shifted, so coerce to numeric (non-numeric -> NA, dropped).
+if (DEPTH_COL %in% names(sub)) {
+    d <- sub %>% filter(common != HYB) %>%
+        mutate(depth = suppressWarnings(as.numeric(.data[[DEPTH_COL]])),
+               fROH_tot = as.numeric(.data[[grep("tot", names(sub), ignore.case = TRUE, value = TRUE)[1]]])) %>%
+        filter(is.finite(depth), is.finite(fROH_tot))
+    cat("\n==== Spearman: total fROH vs depth ====\n")
+    print(cor.test(d$fROH_tot, d$depth, method = "spearman", exact = FALSE))
+    for (s in c("LEPC", "GRPC", "STGR")) {
+        x <- filter(d, common == s)
+        ct <- cor.test(x$fROH_tot, x$depth, method = "spearman", exact = FALSE)
+        cat(sprintf("%s: rho = %.2f, P = %.2g, n = %d\n", s, ct$estimate, ct$p.value, nrow(x)))
+    }
+    # LEPC: ranked total fROH ~ sampling context + depth
+    lepc <- filter(d, common == "LEPC") %>% mutate(r = rank(fROH_tot))
+    print(summary(lm(r ~ GROUP + depth, data = lepc)))
+} else message("Section 5 skipped: no '", DEPTH_COL, "' column in `sub`.")

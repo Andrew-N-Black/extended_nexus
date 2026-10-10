@@ -2,18 +2,14 @@ library(ggplot2)
 library(dplyr)
 library(reshape2)
 
-## ---- test data (delete this block; use your own `sub`) ----
-if (!is.data.frame(get0("sub"))) {
-  set.seed(1)
-  n <- c(LEPC = 426, GRPC = 49, STGR = 29, "STGR / GRPC" = 2)
-  sub <- data.frame(ID = paste0("F", 1:506),
-                    common = rep(names(n), n))
-  sub$GROUP <- ifelse(runif(506) < 0.32, "Sympatric", "Allopatric")
-  sub$fROH_100kb <- rbeta(506, 2, 40)
-  sub$fROH_1Mb   <- rbeta(506, 0.3, 60)
-  sub$fROH_total <- sub$fROH_100kb + sub$fROH_1Mb
-}
-## ------------------------------------------------------------
+## ---- input ------------------------------------------------------------------
+## `sub`: one row per bird with columns ID, GROUP (Allopatric/Sympatric),
+## common (LEPC, GRPC, STGR, "STGR / GRPC") and the three fROH columns
+## (100 kb-1 Mb, >1 Mb, total) from roh_parse_autosomal.sh, merged with the
+## sample metadata (nexus_metadata.xlsx).
+if (!is.data.frame(get0("sub")))
+    stop("Create `sub` first (ID, GROUP, common, three fROH columns); see header.")
+## ---------------------------------------------------------------------------
 
 melt_data <- melt(sub, id.vars = c("ID", "GROUP", "common"))
 

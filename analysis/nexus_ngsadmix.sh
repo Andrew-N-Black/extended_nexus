@@ -18,6 +18,8 @@
 #
 # Runs are skipped if their .qopt and .log already exist, so resubmitting
 # only reruns what failed.
+#
+# NOT USED IN THE USFWS REPORT (Objective 2 reports the PCAngsd PCA only).
 # =============================================================================
 #SBATCH --job-name=nexus_ngsadmix
 #SBATCH --output=logs/%x_%A_%a.out

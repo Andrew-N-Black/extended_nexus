@@ -1,9 +1,15 @@
-#Load libraries
+# =============================================================================
+# plot_pca.R -- USFWS report Objective 2, Figure 10: PCAngsd PCA of the 506-bird
+# depth-harmonized panel (PC1 22.6%, PC2 3.0%). Input: the PCAngsd covariance
+# matrix (nexus_pca_admix.sh -> pcangsd/nexus.cov, copied locally as final.cov)
+# and per-sample metadata in the SAME ORDER as the beagle/CRAM list.
+# Part 1: 2-D figure; part 2: optional interactive 3-D view.
+# =============================================================================
 library(readxl)
 library(ggplot2)
 
 #Read in metadata
-metadata <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/USFWS_REPORTS/files/temporal_metadata_unrelated.xlsx")
+metadata <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/sarek_nexus_new_plus_shotguns/heterozygosity_extended_nexus.xlsx")
 #Read in covariation matrix
 cov<-as.matrix(read.table("/Users/andrewblack/Documents/Research/GROUSE/USFWS_REPORTS/files/final.cov"))
 
@@ -36,7 +42,7 @@ ggplot(data=x, aes(y=V2, x=V1)) +
     )
 
 
------------------------------------------------------------
+# -----------------------------------------------------------
 #Or 3-D plot
 #### Load libraries ####
 library(readxl)

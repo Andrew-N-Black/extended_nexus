@@ -12,7 +12,7 @@ WIN  <- 100000           # window size used in realSFS fst stats2 (50000 or 1000
 STEP <- 20000            # step used (10000 for the 50 kb run)
 EST  <- ""               # "" = Hudson files; ".reynolds" = Reynolds files
 WIN_FILE_SUFFIX <- sprintf("%s.fst.windows_%d_%d.txt", EST, WIN, STEP)
-MIN_SITES <- 10          # drop windows with fewer SNPs than this (noisy FST)
+MIN_SITES <- 500         # drop windows with fewer SNPs than this (report Fig 11: < 500 SNPs excluded)
 
 # Genome-wide weighted FST per pair, if the .fst.global.txt files are not in
 # FST_DIR: paste the second number from `cat <A>_<B>.fst.global.txt` here.

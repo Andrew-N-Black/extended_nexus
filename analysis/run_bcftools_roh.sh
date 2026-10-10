@@ -10,12 +10,12 @@
 #
 # For the independent ROHan (Renaud et al. 2019) cross-check -- estimated
 # directly from CRAM via its own genotype-likelihood model rather than
-# from these called genotypes -- see ROHan/rohan_array.sh +
-# ROHan/rohan_parse_autosomal.sh instead; that pipeline no longer lives in
+# from these called genotypes -- see run_ROHan.sh (not used in the USFWS report) +
+# its own parsing step instead; that pipeline no longer lives in
 # this script (previously Step 7 here, now standalone and array-parallel).
 #
 # USAGE:
-#   sbatch bcftools_roh.sh
+#   sbatch run_bcftools_roh.sh
 # =============================================================================
 #SBATCH --job-name=nexus_bcftools_roh
 #SBATCH --output=logs/%x_%j.out

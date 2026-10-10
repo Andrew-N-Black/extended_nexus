@@ -23,12 +23,15 @@
 # Requires install_rohan.sh to have been run on the login node first.
 #
 # USAGE:
-#   sbatch 08c_rohan.sh
+#   sbatch run_ROHan.sh
+#
+# NOT USED IN THE USFWS REPORT (Objective 2 reports bcftools roh only); kept
+# as a cross-check.
 # =============================================================================
 #SBATCH --job-name=nexus_rohan
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -A dewoody
+#SBATCH -A fnrdewoody
 #SBATCH -t 96:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
