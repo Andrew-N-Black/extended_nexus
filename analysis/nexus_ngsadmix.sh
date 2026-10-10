@@ -88,7 +88,7 @@ if [[ "$STAGE" == "submit" ]]; then
         mv -f "${BEAGLE}.tmp" "$BEAGLE"
     fi
     M=$(( $(zcat "$BEAGLE" | wc -l) - 1 ))
-    NCOL=$(zcat "$BEAGLE" | head -n 1 | awk '{print (NF-3)/3}')
+    NCOL=$( (zcat "$BEAGLE" 2>/dev/null | awk 'NR==1{print (NF-3)/3; exit}') || true )
     [[ "$NCOL" == "$N" ]] || { echo "ERROR: beagle has $NCOL samples, samples.txt has $N" >&2; exit 1; }
 
     # NGSadmix holds the likelihoods as doubles: ~ 3 x N x M x 8 bytes, plus headroom
