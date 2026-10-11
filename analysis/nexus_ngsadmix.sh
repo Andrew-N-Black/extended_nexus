@@ -19,7 +19,8 @@
 # Runs are skipped if their .qopt and .log already exist, so resubmitting
 # only reruns what failed.
 #
-# NOT USED IN THE USFWS REPORT (Objective 2 reports the PCAngsd PCA only).
+# USFWS report, Objective 2: NGSadmix Methods/Results, Figure 11 (K = 2-4;
+# plotted with R/plot_ngsadmix.R).
 # =============================================================================
 #SBATCH --job-name=nexus_ngsadmix
 #SBATCH --output=logs/%x_%A_%a.out

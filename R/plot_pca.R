@@ -1,6 +1,6 @@
 # =============================================================================
 # plot_pca.R -- USFWS report Objective 2, Figure 10: PCAngsd PCA of the 506-bird
-# depth-harmonized panel (PC1 22.6%, PC2 3.0%). Input: the PCAngsd covariance
+# depth-harmonized (4.66x) panel (PC1 19.0%, PC2 2.7%). Input: the PCAngsd covariance
 # matrix (nexus_pca_admix.sh -> pcangsd/nexus.cov, copied locally as final.cov)
 # and per-sample metadata in the SAME ORDER as the beagle/CRAM list.
 # Part 1: 2-D figure; part 2: optional interactive 3-D view.
@@ -16,7 +16,12 @@ cov<-as.matrix(read.table("/Users/andrewblack/Documents/Research/GROUSE/USFWS_RE
 #Extract and calculate eplained variation
 axes<-eigen(cov)
 head(axes$values/sum(axes$values)*100)
+<<<<<<< HEAD
 #19.0348398  2.6813545  2.1215216  0.6356215  0.5772412  0.4886092
+=======
+# [earlier non-harmonized run: 22.6, 3.0, 2.1 ...; 4.66x panel: PC1 19.0, PC2 2.7]
+#[6]  0.4565761
+>>>>>>> b7548b5 (Concordance with USFWS report (Obj 2): full README, FST 100 kb/20 kb windows, depth checks in fROH_statistics.R, no simulated test data, plot_pca.R fixes, fnrdewoody account)
 
 
 #Bind vectors with metadata and plot
@@ -26,7 +31,7 @@ x<-cbind(PC1_3,metadata)
 ggplot(data=x, aes(y=V2, x=V1)) +
     geom_point(size=6, color="black", aes(shape=GROUP, fill=common)) +
     theme_classic() +
-    xlab("PC1 (22.6%)") + ylab("PC2 (3.0%)") +
+    xlab("PC1 (19.0%)") + ylab("PC2 (2.7%)") +
     geom_hline(yintercept=0, linetype="dashed") +
     geom_vline(xintercept=0, linetype="dashed") +
     scale_fill_manual("Species", values=c("goldenrod","brown","black","grey")) +
@@ -57,7 +62,7 @@ cov <- as.matrix(read.table("~/final.cov"))
 #### Extract and calculate explained variation ####
 axes <- eigen(cov)
 head(axes$values / sum(axes$values) * 100)
-# [1] 22.6180474  2.9970624  2.1391689  0.6050842  0.5466266
+# [earlier non-harmonized run: 22.6, 3.0, 2.1 ...; 4.66x panel: PC1 19.0, PC2 2.7]
 # [6]  0.4565761
 
 #### Bind PC vectors with metadata ####
@@ -72,7 +77,7 @@ ggplot(data = x, aes(y = V2, x = V1)) +
     position = position_jitter(width = 0, height = 0.02)
   ) +
   theme_classic() +
-  xlab("PC1 (22.6%)") + ylab("PC2 (3.0%)") +
+  xlab("PC1 (19.0%)") + ylab("PC2 (2.7%)") +
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_vline(xintercept = 0, linetype = "dashed") +
   scale_fill_manual("SPECIES", values = c("goldenrod", "brown", "black", "grey")) +
@@ -134,9 +139,9 @@ for (grp in names(group_symbols)) {
 
 p <- p %>% layout(
   scene = list(
-    xaxis = list(title = 'PC1 (22.6%)'),
-    yaxis = list(title = 'PC2 (2.99%)'),
-    zaxis = list(title = 'PC3 (2.13%)'),
+    xaxis = list(title = 'PC1 (19.0%)'),
+    yaxis = list(title = 'PC2 (2.7%)'),
+    zaxis = list(title = 'PC3'),
     camera = list(eye = list(x = 1.5, y = 1.5, z = 1.5)),
     aspectmode = "cube"
   ),

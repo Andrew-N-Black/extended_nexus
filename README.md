@@ -31,11 +31,10 @@ PRJNA986511.
 | 4. ROH / f_ROH | same; Fig 9 | `analysis/run_bcftools_roh.sh`, `analysis/roh_parse_autosomal.sh` | ANGSD `-GL 1 -doBcf 1 -doPost 1 -minQ 30 -SNP_pval 1e-6` -> `bcftools roh`; quality >= 30; Z excluded; classes 100 kb-1 Mb and > 1 Mb (ROH < 100 kb not counted) |
 | 5. f_ROH statistics | same (species, allopatric vs sympatric, depth check) | `R/fROH_statistics.R`, `R/plot_roh.R` | Kruskal-Wallis + BH pairwise Wilcoxon (hybrids excluded); allopatric vs sympatric within species, BH across 9 tests; Spearman f_ROH vs depth; LEPC `lm(rank(f_ROH) ~ GROUP + depth)` |
 | 6. PCA | same; Fig 10 | `analysis/nexus_pca_admix.sh`, `R/plot_pca.R` (`R/plot_pca_admix.R` for the automatic plots) | ANGSD beagle GLs on all 506 birds (autosomal chunks, local MD5 reference cache) -> PCAngsd |
-| 7. F_ST | same; Fig 11 | `analysis/angsd_fst_species.sh`, `R/plot_fst_sliding_window.R` | SNPs discovered jointly in the 504 non-hybrid birds; folded 2D-SFS prior; Hudson (`-whichFst 1`) and Reynolds (`-whichFst 0`); 100-kb windows, 20-kb step; windows with < 500 SNPs dropped in the plot |
+| 7. Admixture | same; Fig 11 | `analysis/nexus_ngsadmix.sh`, `R/plot_ngsadmix.R` | NGSadmix on the same beagle file thinned to 1 SNP / 10 kb; K = 1-10, 10 runs per K (`-minMaf 0.05 -maxiter 50000 -tol 1e-9`); log-likelihood convergence + Evanno delta K; K = 2-4 plotted. NGSadmix is built from `ngsadmix32.cpp` (see script header) |
+| 8. F_ST | same; Fig 12 | `analysis/angsd_fst_species.sh`, `R/plot_fst_sliding_window.R` | SNPs discovered jointly in the 504 non-hybrid birds; folded 2D-SFS prior; Hudson (`-whichFst 1`) and Reynolds (`-whichFst 0`); 100-kb windows, 20-kb step; windows with < 500 SNPs dropped in the plot |
 
-Kept for reference, not used in the report: `analysis/nexus_ngsadmix.sh`
-(NGSadmix on the same beagle file; NGSadmix must be built from
-`ngsadmix32.cpp`, see its header), the PCAngsd admixture output of
+Kept for reference, not used in the report: the PCAngsd admixture output of
 `nexus_pca_admix.sh`, and `analysis/run_ROHan.sh` (ROHan cross-check).
 
 ## Layout
@@ -57,6 +56,7 @@ bash processing/nexus_downsample_depth_mapping.sh submit
 bash analysis/nexus_heterozygosity.sh submit
 sbatch analysis/run_bcftools_roh.sh && sbatch analysis/roh_parse_autosomal.sh
 bash analysis/nexus_pca_admix.sh submit
+bash analysis/nexus_ngsadmix.sh submit        # after nexus_pca_admix.sh beagle stage
 bash analysis/angsd_fst_species.sh submit
 ```
 
