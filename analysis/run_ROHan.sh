@@ -31,7 +31,7 @@
 #SBATCH --job-name=nexus_rohan
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -A fnrdewoody
+#SBATCH -A dewoody
 #SBATCH -t 96:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

@@ -19,7 +19,10 @@ PRJNA986511.
   (Black et al. 2024 included Z and used the full genome length, so their
   f_ROH values are not directly comparable.)
 - Cluster: Purdue RCAC (Gautschi; depth step tested on Negishi), SLURM
-  account `fnrdewoody`. Paths are under `${CLUSTER_SCRATCH}/GROUSE/nexus`.
+  accounts `dewoody` (Gautschi) and `fnrdewoody` (Negishi): nexus_ngsadmix.sh,
+  run_bcftools_roh.sh and nexus_downsample_depth_mapping.sh were run on Negishi and keep
+  `fnrdewoody`; the rest use `dewoody`. Change `#SBATCH -A` to match where you submit.
+  Paths are under `${CLUSTER_SCRATCH}/GROUSE/nexus`.
 
 ## Pipeline (report section -> scripts)
 

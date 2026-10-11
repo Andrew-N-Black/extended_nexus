@@ -24,7 +24,7 @@
 #SBATCH --job-name=nexus_het
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH -A fnrdewoody
+#SBATCH -A dewoody
 #SBATCH -p cpu
 #SBATCH -t 1-00:00:00
 #SBATCH --nodes=1
