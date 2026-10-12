@@ -154,17 +154,23 @@ if [[ "$STAGE" == "summary" ]]; then
             printf "%s\t%s\t%s\n" "$K" "$R" "$LL" >> "$TAB"
         done
     done
-    # Evanno et al. (2005): L'(K)=mean L(K)-mean L(K-1); dK=|L'(K+1)-L'(K)|/sd L(K)
-    awk -F'\t' 'NR>1 {n[$1]++; s[$1]+=$3; ss[$1]+=$3*$3; if(!($1 in mx)||$3>mx[$1]) mx[$1]=$3}
+    # Evanno et al. (2005): L'(K)=mean L(K)-mean L(K-1); dK=|L'(K+1)-L'(K)|/sd L(K).
+    # sd is two-pass (deviations from the mean): the one-pass sum-of-squares form
+    # loses all precision at log-likelihoods of ~1e7-1e8. dK is NA where sd = 0,
+    # i.e. where every replicate reached the same maximum (typical at K = 1-2).
+    # n_conv = runs within 2 log-likelihood units of the best run for that K;
+    # a K whose best solution is found repeatedly (n_conv >= 3) has converged.
+    awk -F'\t' 'NR==FNR { if (FNR>1) {n[$1]++; s[$1]+=$3; if(!($1 in mx)||$3>mx[$1]) mx[$1]=$3}; next }
+        FNR>1 { mu=s[$1]/n[$1]; d[$1]+=($3-mu)^2; if (mx[$1]-$3 <= 2) nc[$1]++ }
         END {
-          for (k in n) {m[k]=s[k]/n[k]; v=(n[k]>1)?(ss[k]-n[k]*m[k]^2)/(n[k]-1):0; sd[k]=(v>0)?sqrt(v):0}
-          print "K\tn_runs\tmean_loglik\tsd_loglik\tmax_loglik\tdeltaK"
+          for (k in n) {m[k]=s[k]/n[k]; sd[k]=(n[k]>1)?sqrt(d[k]/(n[k]-1)):0}
+          print "K\tn_runs\tmean_loglik\tsd_loglik\tmax_loglik\tn_conv\tdeltaK"
           for (k=1; k<=1000; k++) if (k in n) {
             dk="NA"
             if ((k-1) in n && (k+1) in n && sd[k]>0) dk=sprintf("%.4f", ((m[k+1]-m[k])-(m[k]-m[k-1]))/sd[k])
             if (dk!="NA" && dk<0) dk=sprintf("%.4f",-dk)
-            printf "%d\t%d\t%.2f\t%.4f\t%.2f\t%s\n", k, n[k], m[k], sd[k], mx[k], dk }
-        }' "$TAB" > "${OUT}/evanno.tsv"
+            printf "%d\t%d\t%.4f\t%.4f\t%.4f\t%d/%d\t%s\n", k, n[k], m[k], sd[k], mx[k], nc[k], n[k], dk }
+        }' "$TAB" "$TAB" > "${OUT}/evanno.tsv"
     # copy the highest-likelihood run for each K
     awk -F'\t' 'NR>1 {if(!($1 in b)||$3>b[$1]){b[$1]=$3; r[$1]=$2}} END{for(k in r) print k"\t"r[k]}' "$TAB" |
     while read -r K R; do
