@@ -32,7 +32,7 @@
 # pairs of close relatives or duplicate samples. A group mean near 0 can hide
 # such blocks (positive within sub-blocks, negative between them), so read the
 # DPS table and the heatmaps, not only the means (Garcia-Erill & Albrechtsen
-# 2020, Mol Ecol Resour 20:1617).
+# 2020, Mol Ecol Resour 20:936-949).
 # =============================================================================
 library(readxl)
 

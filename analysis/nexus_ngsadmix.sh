@@ -69,7 +69,7 @@ NGSADMIX="${NGSADMIX:-${TOOLS_DIR}/NGSadmix}"
 #     ml gcc; g++ ngsadmix32.cpp -O3 -lpthread -lz -o NGSadmix
 #     ./NGSadmix            # prints usage if the build worked
 #
-# evalAdmix (Garcia-Erill & Albrechtsen 2020, Mol Ecol Resour 20:1617) -- no
+# evalAdmix (Garcia-Erill & Albrechtsen 2020, Mol Ecol Resour 20:936-949) -- no
 # module either; build once (login node):
 #     mkdir -p ${PROJECT_DIR}/tools && cd ${PROJECT_DIR}/tools
 #     git clone https://github.com/GenisGE/evalAdmix.git
