@@ -8,12 +8,16 @@
 #
 #   bash nexus_ngsadmix.sh submit    # (optional thinning) + array + summary
 #   bash nexus_ngsadmix.sh summary   # rebuild the likelihood table only
+#   bash nexus_ngsadmix.sh evaladmix # evalAdmix on the best run per K (after summary)
 #
 # OUTPUT (${OUT}):
 #   r<rep>/nexus_k<K>.{qopt,fopt.gz,log}   NGSadmix output per run
 #   loglik_by_run.tsv                      K, rep, log-likelihood
 #   evanno.tsv                             mean/SD log-likelihood and delta K
-#   best/nexus_k<K>.qopt                   highest-likelihood run per K
+#   best/nexus_k<K>.{qopt,fopt.gz}         highest-likelihood run per K
+#   best/best_runs.tsv                     K, rep, log-likelihood of that run
+#   evaladmix/nexus_k<K>.corres.txt        evalAdmix residual correlation matrix
+#   evaladmix/summary.tsv                  per K: mean |r| and max r off-diagonal
 #   samples.txt                            sample IDs in .qopt row order
 #
 # Runs are skipped if their .qopt and .log already exist, so resubmitting
@@ -64,6 +68,18 @@ NGSADMIX="${NGSADMIX:-${TOOLS_DIR}/NGSadmix}"
 #     wget http://popgen.dk/software/download/NGSadmix/ngsadmix32.cpp
 #     ml gcc; g++ ngsadmix32.cpp -O3 -lpthread -lz -o NGSadmix
 #     ./NGSadmix            # prints usage if the build worked
+#
+# evalAdmix (Garcia-Erill & Albrechtsen 2020, Mol Ecol Resour 20:1617) -- no
+# module either; build once (login node):
+#     mkdir -p ${PROJECT_DIR}/tools && cd ${PROJECT_DIR}/tools
+#     git clone https://github.com/GenisGE/evalAdmix.git
+#     cd evalAdmix && ml gcc && make
+#     ./evalAdmix           # prints usage if the build worked
+EVALADMIX="${EVALADMIX:-${PROJECT_DIR}/tools/evalAdmix/evalAdmix}"
+EVAL_KS="${EVAL_KS:-$(seq -s ' ' "$K_MIN" "$K_MAX")}"   # K values to evaluate
+# SLURM account: the #SBATCH -A line below is the default; override for the
+# other cluster with  ACCOUNT=dewoody bash nexus_ngsadmix.sh evaladmix
+ACCOUNT="${ACCOUNT:-}"
 # =============================================================================
 
 mkdir -p "$OUT"/best logs
@@ -172,9 +188,12 @@ if [[ "$STAGE" == "summary" ]]; then
             printf "%d\t%d\t%.4f\t%.4f\t%.4f\t%d/%d\t%s\n", k, n[k], m[k], sd[k], mx[k], nc[k], n[k], dk }
         }' "$TAB" "$TAB" > "${OUT}/evanno.tsv"
     # copy the highest-likelihood run for each K
-    awk -F'\t' 'NR>1 {if(!($1 in b)||$3>b[$1]){b[$1]=$3; r[$1]=$2}} END{for(k in r) print k"\t"r[k]}' "$TAB" |
-    while read -r K R; do
+    awk -F'\t' 'NR>1 {if(!($1 in b)||$3>b[$1]){b[$1]=$3; r[$1]=$2}}
+        END{print "K\trep\tloglik"; for(k in r) print k"\t"r[k]"\t"b[k]}' "$TAB" \
+        | sort -k1,1n > "${OUT}/best/best_runs.tsv"
+    tail -n +2 "${OUT}/best/best_runs.tsv" | while read -r K R _; do
         cp -f "${OUT}/r${R}/nexus_k${K}.qopt" "${OUT}/best/nexus_k${K}.qopt"
+        [[ -s "${OUT}/r${R}/nexus_k${K}.fopt.gz" ]] && cp -f "${OUT}/r${R}/nexus_k${K}.fopt.gz" "${OUT}/best/nexus_k${K}.fopt.gz"
     done
     column -t "${OUT}/evanno.tsv" 2>/dev/null || cat "${OUT}/evanno.tsv"
     echo "Best run per K copied to ${OUT}/best/ (rows follow ${OUT}/samples.txt)"
@@ -182,5 +201,71 @@ if [[ "$STAGE" == "summary" ]]; then
     exit 0
 fi
 
-echo "Usage: bash $0 submit | summary" >&2
+# -----------------------------------------------------------------------------
+# evaladmix (login node): one array task per K on the best run of that K.
+# evalAdmix gets the SAME beagle file and -minMaf as NGSadmix, so it sees the
+# same sites. Then a small summary job tabulates the residuals.
+# -----------------------------------------------------------------------------
+if [[ "$STAGE" == "evaladmix" ]]; then
+    [[ -s "${OUT}/best/best_runs.tsv" ]] \
+        || { echo "ERROR: ${OUT}/best/best_runs.tsv missing -- run: bash $0 summary" >&2; exit 1; }
+    [[ -x "$EVALADMIX" ]] \
+        || { echo "ERROR: evalAdmix not found at $EVALADMIX -- build it first (see USER SETTINGS)" >&2; exit 1; }
+    [[ -s "$BEAGLE" ]] || { echo "ERROR: $BEAGLE not found" >&2; exit 1; }
+    mkdir -p "${OUT}/evaladmix"
+    echo "$EVAL_KS" | tr ' ' '\n' | grep -v '^$' > "${OUT}/evaladmix/k_list.txt"
+    NE=$(wc -l < "${OUT}/evaladmix/k_list.txt")
+    N=$(wc -l < "${OUT}/samples.txt")
+    M=$(( $(zcat "$BEAGLE" | wc -l) - 1 ))
+    MEM_GB=$(awk -v n="$N" -v m="$M" 'BEGIN{g=3*n*m*8*1.4/1e9 + 4; g=(g<8)?8:int(g+1); print g}')
+    SELF="$(readlink -f "$0")"
+    J1=$(sbatch --parsable ${ACCOUNT:+-A "$ACCOUNT"} --job-name=nexus_evaladmix \
+         --array=0-$((NE-1))%${MAX_PARALLEL} --cpus-per-task="$CPUS" --mem="${MEM_GB}G" \
+         -t 1-00:00:00 "$SELF" evaladmix_run)
+    J2=$(sbatch --parsable ${ACCOUNT:+-A "$ACCOUNT"} --dependency=afterany:"$J1" \
+         --job-name=nexus_evaladmix_sum --array=0 --cpus-per-task=1 --mem=4G \
+         -t 0-00:30:00 "$SELF" evaladmix_summary)
+    echo "  evalAdmix on K = ${EVAL_KS} (${NE} jobs, ${MEM_GB}G each): $J1 ; summary $J2"
+    exit 0
+fi
+
+if [[ "$STAGE" == "evaladmix_run" ]]; then
+    K=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "${OUT}/evaladmix/k_list.txt")
+    R=$(awk -F'\t' -v k="$K" 'NR>1 && $1==k {print $2}' "${OUT}/best/best_runs.tsv")
+    [[ -n "$R" ]] || { echo "ERROR: no best run for K=$K in best_runs.tsv" >&2; exit 1; }
+    P="${OUT}/r${R}/nexus_k${K}"
+    O="${OUT}/evaladmix/nexus_k${K}.corres.txt"
+    if [[ -s "$O" ]]; then echo "K=$K done -- skipping"; exit 0; fi
+    [[ -s "${P}.qopt" && -s "${P}.fopt.gz" ]] || { echo "ERROR: ${P}.qopt / .fopt.gz missing" >&2; exit 1; }
+    load_tools
+    echo ">>> evalAdmix K=$K (best run r${R})  $(date)"
+    "$EVALADMIX" -beagle "$BEAGLE" -fname "${P}.fopt.gz" -qname "${P}.qopt" \
+        -minMaf "$MINMAF" -P "${SLURM_CPUS_PER_TASK:-$CPUS}" -o "${O}.tmp"
+    mv -f "${O}.tmp" "$O"
+    echo ">>> evalAdmix K=$K finished  $(date)"
+    exit 0
+fi
+
+# Residual correlation of genotypes after removing what the admixture model
+# explains: ~0 between individuals = good fit; positive blocks among members
+# of one population = K too small for that population (Garcia-Erill &
+# Albrechtsen 2020). Group-level summaries and the heatmaps are made locally
+# with R/plot_evaladmix.R (it needs the sample metadata).
+if [[ "$STAGE" == "evaladmix_summary" ]]; then
+    S="${OUT}/evaladmix/summary.tsv"
+    printf "K\tbest_rep\tmean_abs_r\tmax_r\tn_pairs\n" > "$S"
+    for K in $(cat "${OUT}/evaladmix/k_list.txt"); do
+        F="${OUT}/evaladmix/nexus_k${K}.corres.txt"
+        [[ -s "$F" ]] || { echo "WARNING: $F missing" >&2; continue; }
+        R=$(awk -F'\t' -v k="$K" 'NR>1 && $1==k {print $2}' "${OUT}/best/best_runs.tsv")
+        awk -v k="$K" -v r="$R" '{ for (j=NR+1; j<=NF; j++) if ($j != "NA" && $j != "nan") {
+                  a=$j; n++; s+=(a<0?-a:a); if (n==1||a>mx) mx=a } }
+             END { printf "%s\t%s\t%.5f\t%.5f\t%d\n", k, r, (n?s/n:0), mx, n }' "$F" >> "$S"
+    done
+    column -t "$S" 2>/dev/null || cat "$S"
+    echo "Copy ${OUT}/evaladmix/nexus_k*.corres.txt and ${OUT}/samples.txt to the Mac for R/plot_evaladmix.R"
+    exit 0
+fi
+
+echo "Usage: bash $0 submit | summary | evaladmix" >&2
 exit 1
