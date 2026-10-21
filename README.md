@@ -64,12 +64,3 @@ bash analysis/nexus_ngsadmix.sh evaladmix     # after the NGSadmix summary job
 bash analysis/angsd_fst_species.sh submit
 ```
 
-Notes for RCAC: `xalt` injects `LD_PRELOAD` into biocontainers (scripts
-blank it via `SINGULARITYENV_/APPTAINERENV_LD_PRELOAD=""`); CRAM decoding
-uses a local MD5 reference cache (`REF_PATH`/`REF_CACHE`) built from the
-reference, so no EBI lookups are needed.
-
-The R scripts expect `sub` / metadata objects built from
-`nexus_metadata.xlsx` (columns `ID`, `GROUP`, `common`, f_ROH classes,
-depth). Two hybrid rows in that workbook are column-shifted; scripts coerce
-numeric columns with `as.numeric()`.
