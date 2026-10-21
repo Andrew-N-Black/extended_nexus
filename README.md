@@ -1,4 +1,4 @@
-# extended_nexus
+# Objective 2
 
 Range-wide *Tympanuchus* resequencing panel: the 433-bird panel of
 [Black et al. 2024, *PNAS Nexus*](https://academic.oup.com/pnasnexus/article/3/8/pgae298/7720645)
